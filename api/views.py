@@ -10,6 +10,7 @@ from rest_framework.decorators import authentication_classes
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .custompermission import UserPermision
 from django.db.models import Q
+from rest_framework_simplejwt.views import TokenObtainPairView,TokenBlacklistView
 # Create your views here.
 
 
@@ -29,15 +30,20 @@ class UserRegister(APIView):
         
         return Response( {'msg':serializer.errors } , status=status.HTTP_400_BAD_REQUEST)
       
-# @authentication_classes([JWTAuthentication])
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+      
+# @authentication_classes([JWTAuthentication]) 
 class UserProfile(APIView):
   
-    def get(self, request):
-        user = MyUser.objects.get(pk=request.user.id)
-        serializer = UserProfileSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get(self, request):  
+          
+          user = MyUser.objects.get(pk=request.user.id)
+          serializer = UserProfileSerializer(user)
+          return Response(serializer.data, status=status.HTTP_200_OK)
     
     def patch(self,request):
+      print(request.data)
       serializer = UserProfileSerializer(request.user , data = request.data, partial=True )
       if serializer.is_valid():
           serializer.save()
@@ -46,13 +52,14 @@ class UserProfile(APIView):
     
     def delete(self,request):
         user = MyUser.objects.get(id=request.user.id)
+        print("dde",user)
         user.delete()
         return Response({'msg':'User Deleted Successfully'} , status=status.HTTP_200_OK)      
 
 
 
 @permission_classes([IsAdminUser])
-class UserProfileView(APIView):
+class   UserProfileView(APIView):
     def get(self,request,pk=None):
       if pk is None:
           user = MyUser.objects.exclude(is_admin=True)
@@ -78,11 +85,15 @@ class UserProfileView(APIView):
 permission_classes([UserPermision])
 class UserDoctorView(APIView):
     def get(self,request):
-        Q_Base = Q(doctor__is_verified=True)& Q(is_active=True)
-        print("jcndssssssss",Q_Base)
+        q = request.GET.get('q')
+        Q_Base = Q(doctor__is_verified=True) & Q(is_active=True)
         user = MyUser.objects.filter(Q_Base)
-        print("jcndssssssss",user)
+        search_query = Q()
+        if q:
+            search_query = Q(username__icontains=q)|Q(doctor__department__icontains=q)|Q(doctor__hospital__icontains=q)
+            Q_Base &= search_query 
+        user = MyUser.objects.filter(Q_Base)
         serializer = UserViewAdminSerializer(user,many=True)
-        
+          
         return Response(serializer.data,status=status.HTTP_200_OK)
     

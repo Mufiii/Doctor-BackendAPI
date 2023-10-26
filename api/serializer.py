@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import *
 from rest_framework.exceptions import ValidationError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class UserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(style={'input_type':'password'},write_only=True)
@@ -19,6 +20,17 @@ class UserSerializer(serializers.ModelSerializer):
       return data
 
 
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = user.username
+        token['is_doctor'] = user.is_doctor
+        token['is_admin'] = user.is_admin
+        return token
+    
+    
+
 class DoctorSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     hospital = serializers.CharField(required=False)
@@ -34,8 +46,7 @@ class DoctorSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=False)
     last_name = serializers.CharField(required=False)
-    username = serializers.CharField(required=False)
-    email = serializers.EmailField(required=False)
+
     
     class Meta :
         model = MyUser
@@ -47,12 +58,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if users.is_doctor :
             self.fields['doctor'] = DoctorSerializer()
             
-    
+   
     def update(self,instance,validated_data):
+        print(instance,'innn/////////')
         instance.first_name = validated_data.get('first_name',instance.first_name)
         instance.last_name = validated_data.get('last_name',instance.last_name)
         instance.username = validated_data.get('username',instance.username)
         instance.email = validated_data.get('email',instance.email)
+        print(instance.first_name,'first........')
+        print(instance.last_name,'last........')
         
         if instance.is_doctor:
             doctor_data = validated_data.get('doctor')
